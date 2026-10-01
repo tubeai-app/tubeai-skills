@@ -6,7 +6,7 @@ argument-hint: "[setup | new channel <name> | video ideas | style reference <lin
 
 # TubeAI Video: assisted animations and edits
 
-The user edits videos for YouTube channels. We build animated scenes in Remotion that they drop into their edit, and we can edit a creator's raw recording for them: cut it, time the inserts to the words, and hand it over as a timeline they finish in Premiere Pro, Final Cut Pro or DaVinci Resolve. Each channel's branding stays consistent: its styling and animations are set once, then reused or used as the base for new ones. The user brings ideas, some of the media and sometimes a raw recording, and can share a YouTube link or a video file to show the style of the current animations. Through the optional TubeAI connector, Claude also helps find video ideas and draft scripts. Claude researches the rest, builds the animations, and cuts and renders.
+The user edits videos for YouTube channels. We build animated scenes in Remotion that they drop into their edit, and we can edit a creator's raw recording for them: cut it, time the inserts to the words, move the frame on the speaker, master the voice, and hand it over as a timeline they finish in Premiere Pro, Final Cut Pro or DaVinci Resolve. Each channel's branding stays consistent: its styling and animations are set once, then reused or used as the base for new ones. The user brings ideas, some of the media and sometimes a raw recording, and can share a YouTube link or a video file to show the style of the current animations. Through the optional TubeAI connector, Claude also helps find video ideas and draft scripts. Claude researches the rest, builds the animations, and cuts and renders.
 
 ## The user isn't technical
 
@@ -15,7 +15,7 @@ Assume the user isn't technical, and make all of this as seamless as possible fo
 - Claude does the technical work: installs, commands, scripts, config, renders, conversions and fixes. Never ask the user to run a command, edit a file or read code.
 - When something truly needs the user's hands (approving an install, signing in, connecting the Chrome extension, updating a graphics driver), give short numbered steps at the level of what to click, and check afterwards that it worked.
 - Talk in plain language. The first time a technical word can't be avoided, explain it in a few words. Report outcomes, not internals: what's ready, where it is, what's next.
-- Pick sensible defaults and carry on. Ask only when it's genuinely the user's call (creative direction, brand, script wording, licences, permissions, anything that costs money): one question at a time, with a recommendation.
+- Pick sensible defaults and carry on. Ask only when it's genuinely the user's call (creative direction, brand, script wording, permissions, anything that costs money): one question at a time, with a recommendation.
 - Never make the user wait on tooling. Scripts, agent files, installs and project upgrades are yours: add what a task needs while doing it, and mention it in a line.
 - Show instead of describing: send stills, renders and voice samples, so the user approves by looking and listening.
 - When something breaks, tell the user in a line or two what happened while you fix it or work around it (see Keep it fast and smooth). Bring them a problem only when it needs their decision, and then explain it plainly, with the options.
@@ -47,7 +47,7 @@ The user wants a quick setup with no fuss, and then videos made without friction
     - A build stops and asks for developer tools: Apple's command line tools are missing. `xcode-select --install` opens Apple's installer, and the user clicks **Install**.
     - `python3` is macOS's own older copy: use Homebrew's `python3.12`.
   - The GPU runs out of memory: step down (the 0.6B voice model instead of 1.7B, a smaller transcription model, a lower render concurrency, or the CPU), note it under "This machine" in `GUIDELINES.md`, and say so in a line.
-- **Check it before calling it ready.** Probe every file before handing it over: a render plays for the right length and passes QA, a voiceover has sound, a timeline reads back through OpenTimelineIO. The user should never be the one who finds the problem.
+- **Check it before calling it ready.** Probe every file before handing it over: a render plays for the right length and passes QA, a voiceover has sound, a timeline passes every check in the Timeline recipe. The user should never be the one who finds the problem.
 - **Short updates.** One line at each milestone, with a rough time for anything long ("the tools are in; the voice model needs about 5 more minutes"), never a stream of logs.
 
 ## Start of every session
@@ -66,8 +66,9 @@ The user wants a quick setup with no fuss, and then videos made without friction
 
 - The main chat is for discussing ideas and drafting scripts with the user, and for exploring YouTube data through TubeAI when it's connected (the `tubeai-mcp` skill). Turn each agreed idea into a brief, send it to sub-agents, check what they return, show the user (SendUserFile) and iterate. As a rule of thumb, research, editing and animation happen in sub-agents, not in the main chat.
 - A scene needs 1–2 sub-agents, all running Opus 5.5 at xhigh effort. `video-researcher` runs first, and only when the scene needs media we don't have yet. Then `video-animator` builds and renders the scene with that media.
-- A raw recording goes to `video-editor` (see Editing a recording). The inserts planned on top of it are then scenes like any other.
+- A raw recording goes to `video-editor` (see Editing a recording). The inserts planned on top of it are then scenes like any other. When there are many, group them by type (overlays, data boards, article cards, charts): one `video-animator` per group, each in its own folder, all sharing the one timing table.
 - Run at most two heavy agents at a time: more hits the user's usage limit. For revisions, continue the same agent (SendMessage) so it keeps its context.
+- Mind the machine too: one transcription at a time, at most two still renders at once, and a recording's final renders in one batch at the end, under the render lock (see Rendering). A verbatim transcriber (about 6.5 GB of RAM), Whisper, Chrome renders and several agents at once have crashed a laptop.
 - Don't overengineer: no verification rounds between agents, demo compositions, catalog write-ups, mock sets or renders nobody asked for.
 - Record every decision in the video's `BRIEF.md`, and turn every correction the user makes into a written rule, so it never has to be made twice: in `CHANNEL.md` when it's about this channel's look, voice or pacing, in `GUIDELINES.md` when it's about how we work.
 - Spawn the agents by `subagent_type` (their files are in `.claude/agents/`) without a `model` override. If those types aren't available in this session (for example, they were just created), use `general-purpose` with `model: opus` and paste the agent file's body above the brief. Tell the user that effort follows the session setting until a new chat loads the agents.
@@ -76,9 +77,9 @@ The user wants a quick setup with no fuss, and then videos made without friction
   ```text
   Channel: <slug> · Video: <yyyy-mm-dd-slug> · Scene: <CODE>-<video>-s<nn>
   Goal: <what the viewer should take away, 1–2 lines>
-  Specs: <resolution and fps, mp4 | alpha overlay; the length comes from the window>
+  Specs: <resolution and fps; mp4 | full-frame card (split render) | overlay (alpha); the length comes from the window>
   On screen: <exact copy, numbers, what gets highlighted and when>
-  Window: <its row in cut/insert-windows.json (a recording) or its beats in timings.json (a voiceover): start word, end word, and the word that brings in each element>
+  Window: <its row in cut/insert-windows.json (a recording) or its beats in timings.json (a voiceover): start word, end word, the word that brings in each element, and how it enters and exits>
   Media: <user-provided paths, links, researcher output>
   Reference: <YouTube link or video file (+ timestamps) whose style to match, if any>
   Reuse: <templates and channel animations to use; what's new>
@@ -97,12 +98,12 @@ The user wants a quick setup with no fuss, and then videos made without friction
 ├─ remotion.config.ts     # public dir = media/, GPU settings (from core/lib/render-settings.ts)
 ├─ .claude/agents/        # video-researcher.md, video-animator.md, video-editor.md
 ├─ .claude/skills/        # remotion-best-practices (Remotion's official agent skill), and tubeai-mcp if it didn't come with the plugin
-├─ .venv/                 # Python: Qwen3-TTS voices and CrisperWhisper transcripts
+├─ .venv/                 # Python: Qwen3-TTS voices, Whisper and CrisperWhisper transcripts
 ├─ core/                  # logic shared by all channels (no branding)
 │  ├─ index.ts, Root.tsx  # entry; mounts each channel's <Folder> and the template demos
 │  ├─ templates/          # XPostCard, RedditPostCard, ArticleHighlight, DocumentCard, Montage, CTA, transitions
 │  ├─ components/, lib/   # shared building blocks; the timing-table helpers, render settings
-│  └─ scripts/            # capture, clip, voice, transcribe, cut, assemble, timeline, render, qa
+│  └─ scripts/            # capture, clip, voice, transcribe, cut, master, assemble, timeline, render, qa; lib/ for the code they share
 ├─ channels/<slug>/       # one per channel; <slug> is its name in kebab-case
 │  ├─ CHANNEL.md          # brand guide, voice, glossary, style reference, animation catalog
 │  ├─ theme.ts            # brand tokens
@@ -114,7 +115,7 @@ The user wants a quick setup with no fuss, and then videos made without friction
 │  └─ automated-research/ # everything Claude finds or makes: <video>/, style-refs/ and voice/, each with SOURCES.md
 ├─ recordings/<slug>/     # raw recordings, outside media/ so renders never copy them
 ├─ archive/<slug>/        # research media of shipped videos, kept out of media/
-└─ out/<slug>/<video>/    # renders, and timeline/ with the .xml, .fcpxml and .otio exports
+└─ out/<slug>/<video>/    # renders, the voice master, and timeline/ with the .xml, .fcpxml and .otio exports, REVIEW.md and any LUT
 ```
 
 ## PROJECTS.md
@@ -157,8 +158,9 @@ Shipped: `<yyyy-mm-dd-slug>` (<title>), …
   - transitions: the in and out transitions, their lengths and sounds, and the end dip
   - voice: the Qwen3-TTS model size, the speaker (or designed voice), the speed and, on 1.7B, the tone instruction; or the creator's own voice
   - glossary: names and terms, spelled correctly (transcripts are corrected against it, and captions use it)
-  - pacing: natural pauses stay, unless the user wants tighter cuts; then the target, measured from the creator's published edits (share of silence, median and 95th-percentile pause)
+  - pacing: the pause policy for each host: every natural pause kept (the default), pauses capped at a length (such as 0.5 s), or cut tight (about 0.06 s, for a screen-share format); measured from the host's first recording or the creator's published edits (share of silence, median and 95th-percentile pause), and confirmed with the user
   - do's and don'ts
+  - where the channel departs from the defaults for moves on the speaker, sound and photo credits
   - the composition-ID code: a few capital letters from the channel's name
   - the style reference: source and findings (see Style references)
   - a catalog of the reusable animations, with when to use each
@@ -202,8 +204,10 @@ The user can provide a YouTube link or a video file to show the style of the cur
 - YouTube: find the video through TubeAI when it's connected (the `tubeai-mcp` skill), otherwise on YouTube itself, then use yt-dlp and download only the section needed (`npm run clip`). If downloads fail with HTTP 403, see Troubleshooting. Videos on other sites (X, Reddit, Vimeo, news sites and most others) download the same way: `npm run clip` takes their links too, since yt-dlp supports them.
 - Voiceover: a recorded voiceover from the user or creator goes in `user-provided/`. Synthetic voiceovers from `npm run voice` go in `automated-research/<video>/vo/` and are logged in `SOURCES.md`. Never reuse the narration or music of a reference video or another channel.
 - Accuracy: never invent or alter quotes, posts, headlines or figures. Rebuilt cards must match the source as captured. Make mock content only when the user asks for it, and label it as mock in `BRIEF.md`.
-- Figures: check every figure in the script against a primary source before animating it. When one is imprecise or unsupported, show the user the discrepancy with options and a recommendation, and let them decide: a chart must never contradict the narration, so either the script changes or the chart uses the defensible measure. Some data needs a licence to republish, and a free substitute changes the numbers, so show the user both.
-- Photos: public domain, CC0 or CC BY, with an on-screen credit. Avoid CC BY-SA: blurring or cropping can make the video an adaptation. Logos are for identification only.
+- Figures: check every figure in the script against a primary source before animating it. When one is imprecise or unsupported, show the user the discrepancy with options and a recommendation, and let them decide: a chart must never contradict the narration, so either the script changes or the chart uses the defensible measure.
+- In a recording, the words are already said, so labels follow the data. When the host misstates a figure (31% rounded up to "about 32%", or "banks" for a group that includes fund managers), the screen shows the correct one and `REVIEW.md` lists it. The host's joke names for companies never go on screen.
+- A relative date ("in 27 days") is true on one upload day only. List every such line in `REVIEW.md`, with the upload date it assumes.
+- Photos: credit them in the video description (`REVIEW.md` lists the credits), and on screen too only when the channel wants it. Logos are for identification only.
 - Paywalls and bot walls: never work around them (no archive sites, no CAPTCHA solving). Read through the user's own signed-in browser (Claude in Chrome, signed in to the same account as the app); many sites block headless tools, the app's built-in browser pane and WebFetch, even when the page is free. When a publisher asks that large parts not be reproduced, show a brief excerpt. Automated downloads follow each site's access rules, such as declaring a user agent.
 - Browsing and capture:
   - Claude in Chrome (the app's browser tools): finding pages, logged-in, paywalled or bot-blocked sites, and visual checks
@@ -218,52 +222,67 @@ The user can provide a YouTube link or a video file to show the style of the cur
   - **On 1.7B**, CustomVoice also takes a tone instruction in plain words, for the whole voiceover (`--instruct`) or for one beat. The channel's default instruction comes from its audience and tone in `CHANNEL.md`: draft it with the user and settle it by ear with a few samples, the same way as the speaker. A beat gets its own instruction only when the script calls for a different delivery. **VoiceDesign** makes a new voice from a description the user agrees on (gender, age, pitch, pace, character). A designed voice can drift from line to line, so to make one the channel's voice, render a reference clip with it once, save it in `media/<slug>/automated-research/voice/`, and voice every line with Base cloning that clip.
   - **On 0.6B**, the models don't take instructions: tone comes from the speaker, punctuation and line breaks.
   - Input is `beats.json` (`{ "beats": [{ "id", "text", "pauseAfter"?, "instruct"? }] }`). Output is `vo.wav` (48 kHz, loudness-normalized to -16 LUFS), one WAV per beat, and `timings.json`.
-- **Transcripts:** `npm run transcribe` runs CrisperWhisper locally (the `crisperwhisper` package, in the project's Python environment) on a 16 kHz mono WAV, with word timestamps on. The hardware check picks the model size: `large`, `medium` or `turbo`.
-  - It's verbatim by default: fillers, stutters, repeated words and false starts stay in, which is what finding retakes and clean joins needs. `mode="intended"` gives a clean, formatted version when one is wanted, such as for captions.
-  - Word timings are accurate to about 30–40 ms, so scenes sync to them directly. Word-by-word captions still get a check against the audio.
-  - It takes no prompt, so names and terms are corrected against the channel glossary (and the script, when there is one) after transcription. Flag any word you're unsure of for review.
-  - `forced_align(audio, text)` times a known text against the audio, such as a script line or a join being checked. `verbatimize(audio, text)` adds the real disfluencies to a clean transcript.
-- **`timings.json`** is the one timing format both scripts write, in seconds: `{ duration, beats: [{ id, text, start, end }], words: [{ text, start, end }] }`. `voice` gets its word timings by aligning its own text to its output (`forced_align`). A voiceover's scenes time off this file; a recording's scenes time off the timing table built from it (see Editing a recording). Neither ever hard-codes a time.
+- **Transcripts:** `npm run transcribe` runs two models locally, in the project's Python environment, on a 16 kHz mono WAV with word timestamps on. The hardware check picks their size.
+  - **Whisper** (OpenAI's open model, through `transformers`) gives the words. It takes a prompt, so the channel glossary (and the script's names, when there is one) goes in, and names and terms come out spelled right. But it hides stumbles: it folds a restart and its retake into one clean sentence, and drops repeats and fillers, so a re-check with the same Whisper pass looks clean too.
+  - **CrisperWhisper** (the `crisperwhisper` package: `large`, `medium` or `turbo`) is the verbatim pass that finds them: fillers, stutters, repeated words and false starts stay in, with word timings accurate to about 30–40 ms, so scenes sync to them directly. It takes no prompt, so it misspells names: the transcript keeps its words and timings, with Whisper's spelling of names and terms. `mode="intended"` gives a clean, formatted version when one is wanted, such as for captions. `forced_align(audio, text)` times a known text against the audio, such as a script line or a join being checked. `verbatimize(audio, text)` adds the real disfluencies to a clean transcript.
+  - Word-by-word captions get a check against the audio. Flag any word you're unsure of for review.
+- **`timings.json`** is the one timing format both scripts write, in seconds: `{ duration, beats: [{ id, text, start, end }], words: [{ text, start, end }] }`. `voice` gets its word timings by aligning its own text to its output (CrisperWhisper's `forced_align`). A voiceover's scenes time off this file; a recording's scenes time off the timing table built from it (see Editing a recording). Neither ever hard-codes a time.
 
 ## Editing a recording
 
-When the user hands in a creator's raw recording (a file in `recordings/<slug>/`, or a path), edit it into a timeline they finish in their own editor. The recording itself is never changed, so there's nothing to approve before cutting. `video-editor` does the transcript, the cut and the timing table; `video-animator` builds the inserts.
+When the user hands in a creator's raw recording (a file in `recordings/<slug>/`, or a path), edit it into a timeline they finish in their own editor. The recording itself is never changed, so there's nothing to approve before cutting. `video-editor` does the transcript, the cut, the voice master, the timing table, the moves on the speaker and the final assembly; `video-animator` builds the inserts.
 
-**The deliverable is a timeline, not a video.** Editors polish and export in Premiere themselves. Deliver the Final Cut Pro 7 `.xml` (Premiere imports it as a ready sequence: File → Import), an `.fcpxml` for today's Final Cut Pro (File → Import → XML) and an `.otio` (DaVinci Resolve 18.5+: File → Import → Timeline; Premiere Pro 25.6+). Render an MP4 only when the user asks for one.
+**The deliverable is a timeline, not a video.** Editors polish and export in Premiere themselves. Deliver the Final Cut Pro 7 `.xml` (Premiere imports it as a ready sequence: File → Import), an `.fcpxml` for today's Final Cut Pro (File → Import → XML) and an `.otio` (DaVinci Resolve 18.5+: File → Import → Timeline; Premiere Pro 25.6+). Render an MP4 only when the user asks for one. With the timeline go `REVIEW.md` (see The review list) and, when the editor has graded a frame, a LUT (see Colour).
 
 Give the user a rough time for the whole edit up front, then work in this order:
 
-1. **Transcribe** the recording with CrisperWhisper (`npm run transcribe`).
+1. **Transcribe** the recording (`npm run transcribe`, see Voice and transcripts).
 2. **Read the script**, if there is one, and research what it claims: check every figure against a primary source (see Media).
 3. **Brief the inserts** in `BRIEF.md`: every proposed insert with the sentence it goes on (see Inserts). The user approves the brief before any cutting, and usually adds more inserts, articles especially.
-4. **Cut** it (below), and deliver the cut-only timeline, so the user can review the cut while the inserts are built.
-5. **Build the timing table** (below).
-6. **Build the inserts**, each timed from its window in the table.
-7. **Assemble** the timeline: `npm run assemble` turns the windows and renders into the timeline spec, and `npm run timeline` writes the `.xml`, `.fcpxml` and `.otio`.
-8. **QA** everything (see Rendering), and read the timeline back through OpenTimelineIO.
-9. **Deliver** the full timeline, with the exact path to each file.
+4. **Cut** it (below), and deliver the cut-only timeline, so the user can review the cut while the inserts are built. For a new host, confirm the pause policy first.
+5. **Master the voice** (`npm run master`, see Sound).
+6. **Build the timing table** (below). With a host who improvises, re-plan the inserts from the real cut first (see Inserts), and show the user what's new.
+7. **Build the inserts**, each timed from its window in the table, and **plan the moves** on the speaker (see Moves on the speaker).
+8. **Assemble** the timeline. Test the assembly first with tiny stand-in files at the planned frame counts. Then render every insert in one batch, and run `npm run assemble`: it builds the timeline spec from the windows, renders, moves and voice master, writes the `.xml`, `.fcpxml` and `.otio` (`npm run timeline`), and runs every check in the Timeline recipe.
+9. **QA** everything: the renders (see Rendering), the timeline's checks and the sound checks.
+10. **Deliver** the full timeline with `REVIEW.md`, giving the exact path to each file.
 
 **Cutting**
 - With a script, diff the transcript against it word by word. Script text said twice is a retake: keep the last complete take, unless an earlier one is clearly cleaner. A run that matches the script, breaks off and starts again is a false start. Runs that match nothing need judgement: improvisation, or a mistake.
+- Find every stumble, not only the ones the transcript shows (a Whisper-driven cut once left in 20: 9 repetitions, 6 false starts, 3 stutters and 2 fillers):
+  - the verbatim pass against Whisper's words: any word only the verbatim pass has is a candidate;
+  - each sentence re-transcribed as its own short clip by Whisper with a verbatim-leaning prompt ("Um, uh, I- I mean, the- the, so so…"), then diffed against the transcript: any extra word is a candidate;
+  - the audio where the text looks clean: speech energy with no word under it, a word that lasts too long for its syllables, and sentence starts, where restarts cluster.
 - Cut only clear mistakes: false starts, flubbed words, retakes.
-  - Keep every natural pause. Tighten the pacing only when the user asks (see pacing in `CHANNEL.md`).
+  - Pauses follow the host's pause policy (pacing in `CHANNEL.md`). By default, every natural pause stays. For a new host, measure their pauses and confirm the policy with the user before cutting.
   - Keep rants, tangents and ad-libs. The script is a guide.
-  - An aside the speaker takes back ("you know what, I'm not going to say this") is an outtake: cut all of it, even when it's unique.
+  - An aside the speaker takes back ("you know what, I'm not going to say this") is an outtake: cut all of it, even when it's unique. So is a note to the editor said on camera ("cut that"): cut the passage and the instruction.
   - Content beats a clean join. If the only clean cut would remove a sentence of real content just to lose a stutter, keep the sentence, stutter and all, or ask.
-- Make clean joins: cut in real silence at a phrase boundary, never leave a repeated word across a join ("so… so"), and don't cut where nothing is wrong. When a join is rough, move it to the sentence break before or after, or pick a different take boundary.
-- Verify every join by re-transcribing about 2 s either side of it, looking for repeated or partial words.
-- Write `cut/cuts.json` (the kept segments in source time, and the reason for each removal) and `cut/CUTS.md`: the transcript with every removal struck through and its reason, a short "your call" list of the genuine judgement calls, and a "listen to these" list of joins between words.
-- In the timeline, cuts are plain edits, and a 1–2 frame crossfade in Premiere fixes any click. A rendered cut gets a 10–20 ms audio fade at each cut instead.
+- Make clean joins: place every cut by the silence in the audio, not by the word times, because a short word at a pause ("so", "but") is often put on the wrong side of it. Cut in real silence at a phrase boundary, never leave a repeated word across a join ("so… so"), and don't cut where nothing is wrong. When a join is rough, move it to the sentence break before or after, or pick a different take boundary.
+- Verify every join by re-transcribing about 2 s either side of it, with the verbatim pass or the verbatim-leaning prompt, looking for repeated or partial words.
+- `cut/cuts.json` holds only this video's decisions: the removed ranges, each with its reason, and the word fixes. The shared cut library (`core/scripts/lib/`) turns them into the frame-accurate kept segments at any frame rate, the cut's word timings and a reference WAV of the cut, with a 15 ms fade at each cut, for the checks. Write `cut/CUTS.md` too: the transcript with every removal struck through and its reason, a short "your call" list of the genuine judgement calls, and a "listen to these" list of joins between words.
+- In the timeline, cuts are plain edits, and a 1–2 frame crossfade in Premiere fixes any click. A rendered cut gets a 15 ms audio fade at each cut instead.
 
 **The timing table** (in `cut/`, rebuilt on every re-cut)
-- `words-cut.json`: every kept word with its start and end in cut time, corrected wherever the transcript was wrong.
-- `insert-windows.json`: for each insert, its start phrase, end phrase, the spoken text, its start and end in cut seconds, and its beats (the word that brings in each element).
+- `words-cut.json`: every kept word with its start and end in cut time, with the word fixes from `cuts.json`.
+- `insert-windows.json`: for each insert, its start phrase, end phrase, the spoken text, its start and end in cut seconds, its beats (the word that brings in each element), its role (full-frame card or overlay), and how it enters and exits (its own transition, a hold or a dissolve; see Inserts).
 - The core helpers map source time to cut time from the kept segments, and find phrases loosely (`findPhrase(phrase, { after, before })`, `findAll`, `wordsBetween`), ignoring case, punctuation, number words against digits, currency signs and thousands separators.
 - Scenes import the table when they're built and never hard-code a time, so every re-cut re-syncs every insert.
 
 **Feedback** comes as timecodes from the version the user reviewed. Keep each delivered version's `cuts.json` in `cut/versions/`, and map feedback through that version, not the current one. If the timecodes look offset, match by content.
 
-Keep the recording's frame rate throughout, including NTSC rates like 29.97 and 23.976.
+To fix an insert after the editor has imported the timeline, re-render it under the same file name and frame count, and the timeline stays valid. On Windows, check first that Premiere isn't holding the file: an exclusive open succeeds.
+
+Keep the recording's frame rate throughout, including NTSC rates like 29.97 and 23.976, as the exact fraction: 30000/1001 at 29.97 (1,601.6 audio samples per frame at 48 kHz), never rounded through 30.
+
+**The review list.** `REVIEW.md` goes with every delivered timeline, in `timeline/`, with times on the cut:
+- the cut's judgement calls, each with its default already in place;
+- the joins worth a listen, and the moment where the limiter works hardest;
+- a table of every place the screen corrects the host: what they say, and what's on screen;
+- every line with a relative date, and the upload date it assumes;
+- builds worth a glance, such as a long hold or overlapping builds;
+- the moves on the speaker, the track layout, the sound and the colour;
+- the photo credits, ready for the video description.
 
 ## Inserts
 
@@ -275,6 +294,7 @@ An insert is a scene laid over a recording: an article or document card, a chart
 - Step-by-step explanations and analogies get a step build that lasts as long as the explanation (one step per phrase), or several cards. A short card can't hold them.
 - Things named in a row (companies, people, places) get a quick montage: one photo per item, each on its name. A company shows as its headquarters, with the logo visible.
 - Plan richly. Editors want more articles, charts and graphics than the script asks for: about one insert every 30 seconds works, as long as each one is well timed.
+- With a host who improvises, re-plan the inserts from the real cut: ad-libs bring new lists, people, numbers and analogies. The script's cue phrases often aren't said word for word, so anchor every insert on the words actually said, and drop any hint that depends on the script's order.
 
 **Sync** (most corrections land here)
 1. An insert starts on the first word of the sentence it illustrates, and ends right after that sentence or thought. Its length comes from the narration: a fixed 5–7 seconds is wrong almost every time.
@@ -283,15 +303,85 @@ An insert is a scene laid over a recording: an article or document card, a chart
 4. Nothing stays up after the thought is over.
 5. A marker or highlight on a quoted sentence starts when the speaker starts saying it.
 
-A scene's length is its narration window plus its exit: frame 0 is the start word, and the exit starts right after the end word.
+A scene's length is its narration window plus its exit (or its hold, see Joins): frame 0 is the start word, and the exit starts right after the end word.
+
+**Joins**
+- Back-to-back inserts (the next one starts within about 1 s of the last one's end): the first holds, and the next cross-dissolves in over it in 6 frames, on the track right above it. Only the first insert of a run enters with its transition, and only the last exits.
+- An overlay followed straight away by a card holds under it, so the card's entrance covers it. Without the hold, the overlay plays its exit and the card its entrance back to back.
+- A full-frame overlay that plays like a card (a split screen with a window for the speaker, say) joins a card that ends within about 1 s before it with the same cross-dissolve, as two cards would.
 
 **Design**
 - A card format editors approved: the related photo, sharp for a beat, then blurred and dimmed (a crossfade to a pre-blurred copy, see Rendering) while a rounded card springs up with the content; then the insert pushes out. Use it for a channel that has no card style of its own yet.
 - Fill the card: no big empty areas, and stat cards sized to their content. Nothing cropped at the card's edges, except a deliberate page continuation.
+- No box waits empty: a card's box opens with its first content, not before it.
+- Numbered lists run vertically, one item under the other, never across a strip. They're big: about a third of the frame.
+- A highlight behind dark text is a light tint, with black text on it at a contrast of 12:1 or more, never a saturated fill.
+- Only real numbers roll. A rolling-number (odometer) effect once showed the index "WIG20" as "WIG10" mid-roll, and "4 MONTHS" as "2 MONTHS": words that contain digits land static.
+- Clip only the axis an animation needs. Big type is often nudged a few px left so its stems line up with a small label, and inside a box with `overflow: hidden` that cuts off the left curve of a first C, G, O or S and the ends of T and W. For a vertical reveal, clip with `clip-path: inset(0 -<pad> 0 -<pad>)` instead.
 - Charts highlight the claim and drop anything that muddies it. Every figure comes from the data at build time, and the build fails if one doesn't match.
-- Transitions are baked into each insert, rendered as transparent ProRes 4444 so they reveal the recording underneath in any editor: the channel's in and out transitions, their sound in the file's audio (PCM), and a small transparent-to-black overlay for the end dip. These files are large, and on Windows they encode on the CPU, so budget time and disk. A baked transition can't be retimed in the editor. If the user would rather adjust transitions there, test FCP7 `<transitionitem>`s first: how they map to Premiere's own or third-party transitions is uncertain.
-- Sounds, such as a short UI click (about 30–40 ms) at each card start and montage transition, are the channel's choice (`CHANNEL.md`). Make them with FFmpeg, so there's no licence question.
+- Transitions are baked into each insert, so they reveal the recording underneath in any editor: the channel's in and out transitions, and a small transparent-to-black overlay for the end dip. A full-frame card renders in three parts, with alpha only in its head and tail, and an overlay as one ProRes 4444 file (see Rendering). A baked transition can't be retimed in the editor. If the user would rather adjust transitions there, test FCP7 `<transitionitem>`s first: how they map to Premiere's own or third-party transitions is uncertain.
+- Sounds, such as a short UI click (about 30–40 ms) at each card start and montage transition, are the channel's choice (`CHANNEL.md`). Make them with FFmpeg. Card renders are silent: each sound goes on the timeline as a clip of its own (see Sound). An overlay carries its own audio.
 - A CTA is built from scratch with the channel's real name and avatar, never a template's placeholder.
+
+## Moves on the speaker
+
+In a recording's timeline, the frame also moves on the speaker: cuts to a new framing, and eased zooms and pans. They're written into the timeline (see Timeline recipe), so the editor can still adjust them. These are the defaults; `CHANNEL.md` wins where it sets its own.
+
+**When to move**
+- To make room for an overlay: away from a side panel, or scaled into a framed window.
+- For emphasis, a punch-in: a cut to a tighter framing (108%, centred on the face). Use it on a jump cut while the speaker is on screen (it reads as a second camera), when they start an aside or a story, or on a short, blunt answer. It holds until the next full-frame insert covers them, and they reset under that insert, unseen. Never zoom in and back out in view on a short segment.
+- A slow eased push (100% to 105% over about 3 s) on the intro and on the verdict, held the same way.
+- **Not** while an overlay holds the speaker in place, under a lower third, or in 2–3 s gaps between cards.
+- **How often:** about one move per 45 s of the speaker on screen.
+- **How far:** with a 1080p recording in a 1080p sequence, never past 110%, or the picture goes soft. A 4K recording has more room.
+
+**Moving for an overlay**
+- The speaker and the overlay move as one motion: the speaker pans as the panel opens, and back as it closes. A panel must never cover them before they move.
+- An overlay with a window for the speaker enters with the window closed. The speaker cuts to their window framing on a frame where the overlay covers them completely, then the window opens on them, already in place. The way out mirrors it. To check it, the overlay's lowest alpha anywhere in the frame must be fully opaque on the cut frame.
+- To keep one point fixed while scaling (the face): centre = P − (P − C₀) × s, where P is that point at 100%, C₀ is the frame centre and s is the scale as a fraction.
+
+Every move gets a sequence marker and a line in `REVIEW.md`. For scale, one 24-minute edit had 54 moves: 1 intro push, 13 punch-ins, 17 resets under cards, 19 panel pans and 4 window cuts.
+
+## Sound
+
+**The voice master.** A raw recording usually plays well under YouTube's -14 LUFS reference (one played at -20.5 LUFS). Process the whole recording's audio into a voice master, a new 48 kHz, 24-bit WAV; the recording itself is never touched. The FFmpeg chain:
+
+```text
+highpass=f=70,
+acompressor=threshold=-20dB:ratio=2.5:attack=8:release=150,
+volume=<make-up>dB,
+aresample=192000,
+alimiter=limit=-1.7dB:attack=5:release=50:level=0:latency=1,
+aresample=48000
+```
+
+- Measure the make-up gain on the cut, not on the whole recording, in two passes: measure without it, then set it so the cut lands on -14 LUFS integrated (one cut measured -24.2 LUFS and took +10.4 dB). The limiter runs at 4× oversampling, which keeps the true peak under -1.5 dBTP; that cut ended with a loudness range of 3 LU.
+- In the timeline, the voice master is double-system sound: its own file on A1/A2, cut exactly like V1, linked to each V1 clip, at offset 0.
+- Find the moment where the limiter works hardest, and list it in `REVIEW.md` for a listen.
+
+**Effects**
+- Card renders are silent, and each click or sound is a clip of its own on an SFX track, at its frame. A sound can then be swapped or re-levelled in one place, and MP4 audio priming (about 43 ms late) can't shift it. An overlay carries its own audio in its ProRes file.
+- Once the voice comes up, bring the effects and the overlays' audio up with it as clip gain (+4 dB by default), keeping each one under -1 dBTP after the gain.
+
+**Checks**
+- Rebuild the voice from the timeline's own clip values, the way the cut library builds its reference cut of the master, and compare the two: the difference must be zero, at a cross-correlation lag of 0 ms.
+- Every join sits in silence on the processed voice. Raise the silence threshold by the make-up gain (-29.6 dBFS in one edit).
+- Transcribe the opening of the mastered cut and compare it with the cut's words (one edit matched 99%).
+
+## Colour
+
+Premiere's FCP7 XML import doesn't recreate adjustment layers or Lumetri, as far as we know (a round-trip test is still to do). So in a recording's timeline, V2 stays empty for the editor's own adjustment layer, with every other video track above it.
+
+**A LUT that matches the editor's grade.** When the editor grades one frame the way they like it and shares it, build a LUT from it:
+1. Take the same frame from the recording.
+2. Align the two, since the graded frame may be zoomed or shifted: search at 320×180 over scales 1.00–1.10 and ±12 px, scoring by the correlation of edge gradients (the grade doesn't change them), then refine.
+3. Pair the pixels, skipping edges, where a small misalignment hurts.
+4. Fit a 3rd-order polynomial per output channel, with a small ridge. Its 13 terms are 1, r, g, b, r², g², b², rg, rb, gb, r³, g³ and b³.
+5. Bake it into a 33³ `.cube` in `timeline/`. Check the mean error (the first one came to 4.6/255) and show the user a before/after.
+
+Simpler matching fails: matching the mean and standard deviation washed the image out, and per-channel histogram matching turned whites pink, because the two frames' content differed.
+
+The editor applies it once in Premiere: New Item → Adjustment Layer, laid on V2 across the sequence → Lumetri Color → Creative → Look → the `.cube`. Nothing adds it after import yet, so give them these steps.
 
 ## Core templates
 
@@ -300,13 +390,13 @@ They live in `core/templates/`, carry no channel branding and are driven by prop
 - `XPostCard` copies the real X layout: avatar, name, verified badge, handle, time, text (with optional word highlights), media and metrics.
 - `RedditPostCard` shows the subreddit, user, post age, flair, title, body or media, votes and comments.
 - `ArticleHighlight` shows the outlet, headline, byline/date and paragraphs.
-  - An opaque marker (the theme's highlight colour) sweeps behind each highlighted phrase from left to right, one line at a time when the phrase wraps, starting when the speaker starts the sentence.
+  - An opaque marker, a light tint of the theme's highlight colour (see Inserts → Design), sweeps behind each highlighted phrase from left to right, one line at a time when the phrase wraps, starting when the speaker starts the sentence.
   - An optional slow push-in moves toward the line being highlighted.
   - Two modes: rebuilt text (the default), or a screenshot with highlight boxes in normalized coordinates, only for an article that can't be rebuilt.
 - `DocumentCard` rebuilds a document (a regulator page, filing, PDF or paper) as clean text or a table, sized to its content.
-- `Montage` shows one photo per item named in a row, each landing on its name, with a credit line.
+- `Montage` shows one photo per item named in a row, each landing on its name, with a credit line when the channel shows credits on screen.
 - `CTA` is an original like-and-subscribe with the channel's real name and avatar.
-- The transition kit: the in and out transitions, the end dip to black and their sound, with lengths and styles from `theme.ts`, rendered into the transparent insert.
+- The transition kit: the in and out transitions, the end dip to black and the dissolve between back-to-back inserts, with lengths and styles from `theme.ts`, rendered into the insert. Their sounds are separate files for the SFX track, except in an overlay, which carries its own audio.
 
 ## Rendering: always on the GPU
 
@@ -316,21 +406,24 @@ They live in `core/templates/`, carry no channel branding and are driven by prop
   - On a Mac, that's VideoToolbox, Apple's built-in encoder, for H.264, H.265 and ProRes. There's no driver to check.
 
   Set quality with `--video-bitrate`, because hardware encoders don't accept `--crf`.
-- Alpha overlays for the editing software use ProRes 4444 (`--image-format=png --pixel-format=yuva444p10le --codec=prores --prores-profile=4444`). Frames still render on the GPU. On Windows the encode runs on the CPU, because NVENC can't encode ProRes; it's the one exception there, so say so whenever you use it. On a Mac, VideoToolbox encodes ProRes: use `--hardware-acceleration=if-possible`, so it falls back to the CPU if it won't take the alpha channel.
+- Alpha overlays for the editing software use ProRes 4444 (`--image-format=png --pixel-format=yuva444p10le --codec=prores --prores-profile=4444`). Frames still render on the GPU. On Windows the encode runs on the CPU, because NVENC can't encode ProRes; it's the one exception there, so say so whenever you use it. On a Mac, VideoToolbox encodes ProRes: use `--hardware-acceleration=if-possible`, so it falls back to the CPU if it won't take the alpha channel. These files are large, so budget time and disk.
+- Split renders save most of that for full-frame cards (`npm run render:split`). A card renders in three parts, placed back to back on one track: a head in ProRes 4444 with alpha, holding the entrance until the card covers the shot; an opaque H.264 body, encoded on the GPU; and a ProRes 4444 tail, holding the exit. An overlay stays a single ProRes 4444 file. ffprobe checks every part's frame count.
 - Any video can also go out as a timeline, the professional output: the Premiere `.xml`, the Final Cut `.fcpxml` and the `.otio` (see Editing a recording), with the scenes at their start times over the voiceover when there is one, and a marker on each. It's the default for a recording. For other videos, offer it when the user finishes in Premiere, Final Cut or Resolve, and make it whenever they ask.
 - `angle` can leak memory on long renders. Keep each composition to one scene, and split with `--frames` if one runs long.
 - Never put a live CSS `filter: blur()` on a large photo: rendered on the GPU across parallel tabs, it flashes single white frames and black flicker. Pre-blur each background once (cached copies at 2560 px or less), crossfade from sharp to blurred by opacity, and hold each frame until its images are decoded.
 - The hardware check sets the concurrency (how many frames render at once) for this machine. If a render runs out of memory or the computer slows to a crawl, halve it, save the new value in `render-settings.ts` and under "This machine" in `GUIDELINES.md`, and render again.
+- Every final render takes a machine-wide render lock (a lock file in the system's temp folder) in `render` and `render:split`, so no two overlap, whichever agent starts them. A recording's inserts render in one batch at the end. Stills run at most two at a time.
 - Every render run bundles the project, and bundling copies all of `media/`. Three things keep that cheap:
   - The `render` script bundles once per run and accepts several IDs.
   - Raw recordings live in `recordings/`, never in `media/`: a 4 GB recording there is copied on every render.
   - When a video ships, move its `automated-research/<video>/` to `archive/<slug>/<video>/`. Suggest the same for the user's large files, but never move them yourself.
 - Render flags live in one module, `core/lib/render-settings.ts`, read by both `remotion.config.ts` and the render script, because Remotion's Node APIs don't read the config file.
 - Resolution and fps come from `CHANNEL.md` (or, for a cut recording, from the recording), so renders match the user's timeline.
-- Everything runs through npm scripts, so nobody has to remember flags: `studio`, `render`, `render:alpha`, `still`, `qa`, `capture`, `clip`, `voice`, `transcribe`, `cut`, `assemble`, `timeline`, `gpu`. Renders go to `out/<slug>/<video>/<composition-id>.<ext>`, outside `media/`, so they never get bundled.
+- Everything runs through npm scripts, so nobody has to remember flags: `studio`, `render`, `render:alpha`, `render:split`, `still`, `qa`, `capture`, `clip`, `voice`, `transcribe`, `cut`, `master`, `assemble`, `timeline`, `gpu`. Renders go to `out/<slug>/<video>/<composition-id>.<ext>`, outside `media/`, so they never get bundled.
 - **QA before anyone sees a render:**
-  - `npm run qa` scans every frame's brightness (FFmpeg `signalstats`, YAVG). It flags any single-frame jump or drop of more than about 40 (8-bit) against both neighbours, and any all-white or all-black frame that isn't at an edge. Alpha files are scanned over mid-grey.
+  - `npm run qa` scans every frame's brightness (FFmpeg `signalstats`, YAVG). It flags any single-frame jump or drop of more than about 40 (8-bit) against both neighbours, and any all-white or all-black frame that isn't at an edge. A structure pass, comparing each frame's detail with its neighbours', catches the blank frames a brightness scan misses on white pages. Alpha files are scanned over mid-grey.
   - Look at every insert at its start, middle and end: cropping, empty space, text size, marker placement.
+  - Look for clipped letters: count the ink pixels in each column at a text box's edge. A jump from 0 to 20 or more in a single column is a letter cut off (see Inserts → Design).
   - Check its sync against the timing table.
 - An MP4 with sound lands its audio about 43 ms late (AAC priming with no edit list): trim or flag the priming samples when muxing.
 - After a reboot or a usage limit, probe every render (ffprobe duration) before trusting it, and redo only what's missing or broken.
@@ -354,10 +447,10 @@ The first step of setup. It takes seconds, needs nothing from the user, and fits
   - Other NVIDIA cards: the 0.6B models on the GPU, in bf16 on an RTX 30-series or newer and fp32 on older cards.
   - Any Apple Silicon Mac: the 1.7B models on the GPU (PyTorch's `mps` device). Test one line first; if `mps` misbehaves, use the 0.6B models on the CPU.
   - Anything else (AMD or Intel graphics, an Intel Mac): the 0.6B models on the CPU. It works, but slowly.
-- **Transcription model** (CrisperWhisper, see Voice and transcripts)
-  - NVIDIA with 4 GB of VRAM or more, or any Apple Silicon Mac: `large`.
+- **Transcription models** (see Voice and transcripts), the same size for Whisper and CrisperWhisper:
+  - NVIDIA with 4 GB of VRAM or more, or any Apple Silicon Mac: `large` (Whisper `large-v3`).
   - NVIDIA cards with less: `medium`.
-  - Everything else, and whenever it has to run on the CPU: `turbo`.
+  - Everything else, and whenever it has to run on the CPU: `turbo` (Whisper `large-v3-turbo`).
 - **Render concurrency** (how many frames Remotion renders at once)
   - The ceiling is the lower of the CPU's threads and one per GB of RAM beyond 4 GB kept for the system (16 GB allows 12).
   - Once the template demos exist, benchmark one at half, three quarters and all of that ceiling (`npx remotion benchmark <id> --concurrencies=<a>,<b>,<c> --frames=0-89`), and save the fastest in `core/lib/render-settings.ts`.
@@ -392,28 +485,29 @@ For the user, setup is a single request. Claude does every step below and only s
 4. Set up the Python environment in `.venv/`:
    - PyTorch: on Windows, the CUDA build when the hardware check found an NVIDIA GPU (confirm with `torch.cuda.is_available()`), otherwise the CPU build. On a Mac, the standard build, which on Apple Silicon includes the `mps` GPU device (confirm with `torch.backends.mps.is_available()`).
    - `qwen-tts`. It pins its own `transformers` version, which is one reason it gets its own environment.
-   - `crisperwhisper[transformers]`, for transcripts. It only needs `transformers` 4.40 or newer, so it shares this environment with `qwen-tts`; if their versions ever clash, give it its own. Its faster CTranslate2 runtime only exists for Linux.
+   - `crisperwhisper[transformers]`, for transcripts, with Whisper running through the same `transformers`. CrisperWhisper only needs `transformers` 4.40 or newer, so it shares this environment with `qwen-tts`; if their versions ever clash, give it its own. Its faster CTranslate2 runtime only exists for Linux.
    - `opentimelineio` with its Final Cut Pro 7 XML and Final Cut Pro X adapters (`otio-fcp-adapter`, `otio-fcpx-xml-adapter`), to read every exported timeline back as a check.
    - The voice model size, device and precision from the hardware check. Download only its CustomVoice model now, in the background; Base and VoiceDesign download the first time they're needed. FlashAttention is optional.
-5. Download the transcription model the hardware check picked, in the background, then transcribe a 10-second test clip. It should run on the GPU where there is one (CUDA on NVIDIA, `mps` on Apple Silicon), and on the CPU otherwise.
+5. Download the transcription models the hardware check picked, in the background, then transcribe a 10-second test clip. They should run on the GPU where there is one (CUDA on NVIDIA, `mps` on Apple Silicon), and on the CPU otherwise.
 6. Create the layout above. The entry point `core/index.ts` registers `core/Root.tsx`, which mounts a `<Folder>` per channel plus a `templates` folder of demos.
 7. In `core/lib/render-settings.ts`, which `remotion.config.ts` and the render script both read, set the public dir to `media`, `angle`, Chrome for Testing, the hardware acceleration the hardware check picked, and the video bitrate. The concurrency comes in step 9, once there's a template demo to benchmark.
 8. Write the scripts in `core/scripts/`. None of them write into `user-provided/`. `capture` and `clip` log their files in `SOURCES.md` when given `--note` (and `--scene`).
    - `capture`: saves a URL as a PNG at 2× device scale, either the full page or a CSS selector, in light or dark mode, with cookie and consent overlays hidden. It also saves the article text as JSON (Readability).
    - `clip`: runs `yt-dlp --download-sections "*<start>-<end>" --force-keyframes-at-cuts -S "vcodec:h264,res,acodec:m4a" --merge-output-format mp4 -o <path> <url>`. H.264 MP4 cuts cleanly into an edit. Drop the h264 preference when 4K is needed. Without a section, it downloads the whole video (for style references). When a download fails, it loops through YouTube clients (see Troubleshooting) and prints which one worked and the resolution.
    - `voice`: Qwen3-TTS through the `.venv` Python, at the model size the hardware check picked. Options: `--speaker`, `--speed`, `--samples` (one line per preset speaker), `--instruct "…"` (tone, 1.7B only), `--design "…"` (a new voice from a description, 1.7B only), `--clone <ref.wav> --ref-text "…"` (the Base model; a real person's voice only with their permission).
-   - `transcribe`: runs CrisperWhisper through the `.venv` Python on a 16 kHz mono WAV, verbatim with word timestamps, and writes `transcript.json` (Remotion captions: `text`, `startMs`, `endMs`) and `timings.json`, with names and terms corrected against the glossary. It can also transcribe or `forced_align` a short window, for checking joins.
-   - `cut`: the transcript against the script → a draft `cuts.json` (retakes and false starts, each with its reason) and `CUTS.md`, plus a re-transcription of about 2 s either side of every join.
-   - `assemble`: a video's windows (`insert-windows.json` for a recording, the `timings.json` beats for a voiceover) and its renders → the timeline spec.
-   - `timeline`: a timeline spec (the kept segments of the recording, the inserts and the markers) → Final Cut Pro 7 `.xml` (Premiere), `.fcpxml` (Final Cut Pro) and `.otio` (Resolve), written directly and following the Timeline recipe below. It then reads the `.xml` and `.fcpxml` back through OpenTimelineIO and checks the clip counts, positions and total length.
-   - `render`: bundles once per run, renders each ID with the settings from `render-settings.ts`, and, when encoding with NVENC, checks the NVIDIA driver first.
-   - `qa`: the flash scan on a render (see Rendering), over mid-grey for alpha files.
+   - `transcribe`: runs Whisper (prompted with the glossary) and CrisperWhisper's verbatim pass through the `.venv` Python on a 16 kHz mono WAV with word timestamps, and writes `transcript.json` (Remotion captions: `text`, `startMs`, `endMs`) and `timings.json`, with names and terms corrected against the glossary. It can also transcribe a short window, with or without a prompt, or `forced_align` it, for checking sentences and joins.
+   - `cut`: finds the stumbles (see Cutting) and diffs the transcript against the script → a draft `cuts.json` (the removed ranges, each with its reason, and the word fixes) and `CUTS.md`, with every cut placed in the audio's silence. Its shared library in `core/scripts/lib/` turns `cuts.json` into the kept segments at the recording's exact frame rate, `words-cut.json` and a reference WAV of the cut, and re-transcribes about 2 s either side of every join.
+   - `master`: the voice master (see Sound). It measures the cut, sets the make-up gain, writes the WAV, and reports its loudness, true peak and loudness range, and the moment where the limiter works hardest.
+   - `assemble`: a video's windows (`insert-windows.json` for a recording, the `timings.json` beats for a voiceover), its renders, the moves and the voice master → the timeline spec, with the empty colour track, the held overlays and the effects' gain. It then runs `timeline`, and every check in the Timeline recipe on what it wrote.
+   - `timeline`: a timeline spec (the kept segments of the recording with their moves, the voice master, the inserts with their clip gain, the sound effects and the markers) → Final Cut Pro 7 `.xml` (Premiere), `.fcpxml` (Final Cut Pro) and `.otio` (Resolve), written directly and following the Timeline recipe below. It then reads the `.xml` and `.fcpxml` back through OpenTimelineIO and checks the clip counts, positions and total length.
+   - `render`: bundles once per run, renders each ID with the settings from `render-settings.ts` under the render lock, and, when encoding with NVENC, checks the NVIDIA driver first. `render:split` renders full-frame cards as head, body and tail (see Rendering).
+   - `qa`: the flash scan and the structure pass on a render (see Rendering), over mid-grey for alpha files.
 9. Build the core templates and their demos, then benchmark the concurrency on one of them (see Hardware check).
 10. Create the channel(s) the user names (see Channels). Brand work needs the user's input, ideally with a style reference.
 11. Write the three agent files below into `.claude/agents/`. In `video-researcher.md`, name the TubeAI skill exactly as the skill list shows it: `tubeai:tubeai-mcp` when it came with the plugin, `tubeai-mcp` otherwise.
 12. Write the docs:
     - `README.md` for the user, in plain language with click-level steps. Claude normally runs everything, so this is only for doing it by hand; keep it short. It covers connecting TubeAI (in the Claude app, or with one line in the terminal), previewing with `npm run studio` (http://localhost:3000), one example each for render, alpha, still, capture, clip, voice and transcribe, where to put media, how to share a style reference (paste a YouTube link in the chat, or give the path to a video file), where to put a recording to edit (`recordings/<slug>/`), how to open the exported timeline in Premiere, Final Cut or Resolve, and where renders go.
-    - `GUIDELINES.md`: these sections of this skill, adapted to what was actually installed and verified: The user isn't technical, Keep it fast and smooth, Workflow through Rendering, and Troubleshooting. Add a "This machine" section with the hardware check's findings and choices.
+    - `GUIDELINES.md`: these sections of this skill, adapted to what was actually installed and verified: The user isn't technical, Keep it fast and smooth, Workflow through Rendering, and Troubleshooting. Add a "This machine" section with the hardware check's findings and choices, and whether the user declined TubeAI, so later chats don't offer it again.
     - `PROJECTS.md`, from the template in the PROJECTS.md section, with the channel(s) just created and no videos yet.
     - `CLAUDE.md`, containing `@GUIDELINES.md` and `@PROJECTS.md`, each on its own line.
 13. Verify each of these, then tell the user in plain language what works and what, if anything, needs them:
@@ -423,7 +517,7 @@ For the user, setup is a single request. Claude does every step below and only s
     - a real news article through both Claude in Chrome (if connected, it opens and screenshots the page) and `npm run capture` (saves PNG + JSON)
     - a 10-second yt-dlp test clip, noting which client worked and at what resolution
     - a short `npm run voice` line, transcribed back with `npm run transcribe`: the words should come back right
-    - a two-cut test: `npm run timeline` on a short clip with two cuts, with the `.xml` and `.fcpxml` both read back through OpenTimelineIO with the right clip count and length
+    - a two-cut test: a short clip with two cuts, one move, one stand-in insert and its voice master, through `npm run assemble`. Every check passes, and the checks bite: they fail with the insert shifted by one frame, and again with V1 off by one frame
 
     If anything fails, say so and include the error.
 
@@ -446,10 +540,13 @@ Fix these without the user where possible, telling them in a line what's happeni
 - **Single white frames or black flicker in a render:** a live CSS blur on a large photo. See Rendering.
 - **Timeline clips run past the end of a render:** its audio stream is longer than its picture (AAC priming). Take lengths from the video stream's `nb_frames`.
 - **Every render is slow and the disk fills up:** a raw recording sits inside `media/`, so every render copies it. Recordings belong in `recordings/`.
+- **Letters cut off at the edge of a card** (the left of a first C, G, O or S, the ends of T and W): big type nudged left inside an `overflow: hidden` box. Clip only the axis the animation needs (see Inserts → Design).
+- **A word with digits changes mid-animation** ("WIG20" shows "WIG10"): a rolling-number effect took it for a number. Words that contain digits land static.
+- **A re-rendered insert won't replace the old file on Windows:** Premiere has it open. Ask the user to close the project in Premiere, render again under the same name and frame count, then reopen it.
 
 ## Timeline recipe (Premiere XML, Final Cut FCPXML and OTIO)
 
-The `timeline` script writes three files from one timeline spec: a Final Cut Pro 7 `.xml` for Premiere Pro, an `.fcpxml` for today's Final Cut Pro, and an `.otio` for DaVinci Resolve. The Premiere recipe was confirmed in Premiere Pro 2025 (File → Import). The Final Cut recipe hasn't been through a real import yet, so ask the first Final Cut user to confirm it, and fix the recipe from what they report.
+The `timeline` script writes three files from one timeline spec: a Final Cut Pro 7 `.xml` for Premiere Pro, an `.fcpxml` for today's Final Cut Pro, and an `.otio` for DaVinci Resolve. The Premiere recipe, moves and voice master included, was confirmed in Premiere Pro 2025 (File → Import). The Final Cut recipe hasn't been through a real import yet, so ask the first Final Cut user to confirm it, and fix the recipe from what they report.
 
 **Premiere Pro (Final Cut Pro 7 XML)**
 
@@ -459,10 +556,29 @@ The `timeline` script writes three files from one timeline spec: a Final Cut Pro
 - **Paths** are absolute, so the editor asks to relink if files move. On Windows: `file://localhost/C%3a/Users/...`, with the drive's colon as `%3a` and each path segment URI-encoded, as Premiere writes it. On a Mac: `file://localhost/Users/...`, each segment URI-encoded.
 - **Clip items:** `start`/`end` are timeline frames, `in`/`out` are source frames, and `duration` is the source file's total length. Set `masterclipid` per file, and link each video item to its audio items with `<link>` entries (`linkclipref`, `mediatype`, `trackindex`, `clipindex`, plus `groupindex` for audio), so they move together.
 - **Stereo audio**, the way Premiere exports it: two "exploded" mono tracks. Each track carries `premiereTrackType="Stereo"`, `currentExplodedTrackIndex` (0 or 1), `totalExplodedTrackCount="2"` and its `<outputchannelindex>`. Each clip item carries `premiereChannelType="stereo"` and a `<sourcetrack>` with `trackindex` 1 or 2. Premiere rebuilds them as one stereo track.
-- **Markers:** sequence markers (`<marker>` with `<name>`, `<comment>`, `<in>`, `<out>-1`) plus a clip marker on each insert, carrying the insert's ID and its cue line, so the editor can find their way around the edit.
+- **Markers:** sequence markers (`<marker>` with `<name>`, `<comment>`, `<in>`, `<out>-1`), one per insert and one per move, plus a clip marker on each insert, carrying the insert's ID and its cue line, so the editor can find their way around the edit.
 - **Lengths come from the picture, not the container.** AAC priming (2048 samples, about 43 ms at 48 kHz) makes a render's audio a few frames longer than its video. Use the video stream's `nb_frames`, or out-points run past the last frame.
-- **Cuts as kept segments:** every kept segment of the recording sits on V1, back to back, each linked to the original file with its in and out points, so every cut stays a normal edit point the editor can roll open. In the spec: `"main": { "file", "segments": [{ "in", "out" }] }`. For a video with no recording, `main` is the voiceover as one audio-only segment, or is left out.
-- **Track layout:** V1 holds the cut, with its audio on A1/A2. V2 holds the full-frame inserts; an insert that would overlap the previous one moves up to V3. The top track holds the overlays (lists, lower thirds, CTA, tags) and the end dip to black. Each insert's audio goes on the next free stereo pair. No empty tracks. With no recording, V1 holds the full-frame scenes at their start times, over the voiceover on A1/A2 when there is one.
+- **Cuts as kept segments:** every kept segment of the recording sits on V1, back to back, each linked to the original file with its in and out points, so every cut stays a normal edit point the editor can roll open. In the spec: `"main": { "file", "segments": [{ "in", "out" }], "audio", "moves" }`, with `audio` the voice master and `moves` the moves on the speaker. For a video with no recording, `main` is the voiceover as one audio-only segment, or is left out.
+- **Moves** go in FCP7's `Basic Motion` filter on the V1 clip items (see Moves on the speaker):
+  - `scale` is a percentage of the frame-filling size. `center` is the recording's centre as normalised offsets: `horiz` = px ÷ sequence width and `vert` = px ÷ sequence height, with 0, 0 centred.
+  - A cut to a new framing is a through-edit: split the V1 clip at that frame, so both halves continue the same source, and give the second half its own static Scale and Center.
+  - An eased move is one linear keyframe on every frame, along Premiere's Ease In/Out curve (Bezier at 33.33% influence: cubic-bezier(1/3, 0, 2/3, 1), which is 3p² − 2p³). That's exact in any editor, though fiddly to adjust by hand. `<keyframe><when>` counts in the clip's source frames (its in point plus the offset), as Premiere's own FCP7 export writes it.
+  - Two keyframes with Bezier handles (`<inbez>`/`<outbez>`) should work for Scale, but FCP7 keeps Center's 2D ease in `<inscale>`/`<outscale>`, which Premiere's importer probably doesn't read. Both are untested in Premiere, so write the per-frame keyframes.
+  - A move across a V1 join is split across the two clips, with the same value on both sides of the join.
+  - Read the Motion values back from the XML and compare them with the plan: they should match to within 0.00005% in scale and 0.001 px in position.
+- **The voice master** is double-system sound: its own `<file>` on A1/A2, each clip item cut exactly like its V1 clip (the same in and out points, at offset 0) and linked to it.
+- **Clip gain** is Premiere's Audio Levels filter on the clip item (`<effectid>audiolevels</effectid>`). Its `level` parameter is a linear gain: +4 dB is 1.584893, and the maximum is about 3.981 (+12 dB). In the spec, it's each insert's `level`, in dB.
+- **Sound effects** are clips of their own on the SFX tracks, each at its frame.
+- **Track layout,** from the bottom up:
+  - V1: the speaker, with the cuts and moves. The voice master is on A1/A2.
+  - V2: empty, for the editor's colour adjustment layer (see Colour).
+  - Next, the overlays that hold under a card.
+  - Then the full-frame cards. A card that dissolves in sits on the track right above the one it dissolves from, and a card that would overlap another moves up a track.
+  - Above the cards, the overlays (lists, lower thirds, CTA, tags), with the end dip to black on top.
+  - Audio, above A1/A2: the overlays' own audio, each on the next free stereo pair, then the sound effects on a stereo pair of their own.
+
+  No empty tracks except V2, and no overlaps on any track. With no recording, V1 holds the full-frame scenes at their start times, over the voiceover on A1/A2 when there is one, and there's no colour track.
+
 **Final Cut Pro (FCPXML)**
 
 Final Cut Pro 10 and 11 can't open the Final Cut Pro 7 XML above. They read FCPXML, Apple's documented format (File → Import → XML).
@@ -475,12 +591,27 @@ Final Cut Pro 10 and 11 can't open the Final Cut Pro 7 XML above. They read FCPX
 - **The cut:** every kept segment is an `<asset-clip>` on the spine, back to back. Its `offset` is its position in the timeline, `start` its in-point and `duration` its length. The spine is Final Cut's main storyline, so every cut stays a normal edit the editor can adjust.
 - **Inserts** are connected clips: an `<asset-clip>` nested in the spine clip under its first frame, with `lane="1"` for full-frame inserts and higher lanes for overlaps and overlays. A connected clip's `offset` is in its parent's local time: `offset = parent's start + (the insert's timeline position − parent's offset)`. Getting this wrong shifts every insert.
 - **Markers:** a `<marker>` inside each insert's clip, with `start` at the clip's own `start`, one frame long, the insert's ID as `value` and its cue line as `note`.
+- **Sound effects** are connected clips below the spine (negative lanes), and clip gain is an `<adjust-volume amount="…dB"/>` inside the clip.
+- **Not mapped yet:** the moves on the speaker and the voice master. Until a Final Cut user has tested them, Final Cut gets the cut with the recording's own audio, and no moves.
 - **Sequence:** `format`, the total `duration`, `tcStart="0s"`, `tcFormat="NDF"`, `audioLayout="stereo"` and `audioRate="48k"`. With no recording, the voiceover is the spine (or a `<gap>` when there isn't one), and the scenes connect to it the same way.
 
 **All three**
 
 - **Validate every export:** read the `.xml` back with OpenTimelineIO's Final Cut Pro 7 XML adapter and the `.fcpxml` with its Final Cut Pro X adapter (independent implementations), and check the clip counts, positions and total length.
-- **OTIO pitfalls:** `Marker.1` uses `range`, while `Marker.2` uses `marked_range` plus `comment`. Use `Clip.1` with `media_reference` for older readers.
+- **The checks on every timeline**, all passing before delivery (a video without a recording skips the ones about it):
+  1. The sequence's name and size, and one frame rate for every clip and file.
+  2. V1 equals the cut list once the through-edits are joined back, and it ends on the last insert's frame.
+  3. A1 and A2 are cut exactly like V1, with the voice master at its offset.
+  4. Every insert is on its frame, with the right file, length and alpha, and its parts back to back. There's one insert per timing-table window.
+  5. Starts, ends, roles and exits match the timing table, and each dissolving card is right above the one it dissolves from.
+  6. The tracks stack as planned (the empty colour track, held overlays, cards, overlays, the end dip), with no overlaps on any track.
+  7. Overlays carry their audio at the set gain, card parts carry none, and the sound effects are on their frames.
+  8. There's one marker per insert and per move, and the moves read back from the XML match the plan.
+  9. The `.otio` has the same clips.
+  10. The checks in Sound pass.
+- **Prove the checks bite,** at setup and whenever they change: run them once with an insert shifted by one frame, and once with V1 off by one frame. Both runs must fail.
+- **Test the assembly before the renders exist,** with tiny stand-in files at the planned frame counts.
+- **OTIO** has no schema for keyframes, so Resolve gets the cut without the moves. Its pitfalls: `Marker.1` uses `range`, while `Marker.2` uses `marked_range` plus `comment`. Use `Clip.1` with `media_reference` for older readers.
 
 ## Agent files
 
@@ -511,8 +642,8 @@ the tubeai-mcp skill for anything TubeAI:
   screenshots. Read paywalled or bot-walled pages only through the user's signed-in browser
   (Claude in Chrome): never work around a paywall.
 - Figures: check each one against a primary source, and report any that are imprecise or
-  unsupported, with options and a recommendation. Say when data needs a licence to republish.
-- Photos: public domain, CC0 or CC BY only (never CC BY-SA), with the credit in SOURCES.md.
+  unsupported, with options and a recommendation.
+- Photos: log each one's credit in SOURCES.md.
 - YouTube: find the video first through TubeAI when it's connected (the tubeai-mcp skill has
   the playbooks). Every call counts against the user's daily TubeAI budget, so make few,
   well-aimed ones. Then download only the needed section
@@ -538,8 +669,8 @@ effort: xhigh
 skills:
   - remotion-best-practices
 ---
-You build one scene of a YouTube video, or a channel's theme and reusable animations, in this
-Remotion project.
+You build one scene of a YouTube video, a group of a recording's inserts, or a channel's theme
+and reusable animations, in this Remotion project.
 
 First read in full: README.md, GUIDELINES.md, channels/<slug>/ (CHANNEL.md, theme.ts,
 animations/, and, for a video, videos/<video>/ with BRIEF.md and existing scenes), and the
@@ -554,16 +685,21 @@ Then do what the main chat asks, following GUIDELINES.md:
 - If the brief has a reference video, or CHANNEL.md has a style reference for this kind of
   animation, match it and include side-by-side stills (the reference frame next to ours).
 - Time the scene from its window: cut/insert-windows.json for a recording, timings.json for a
-  voiceover. It starts on the start word, exits right after the end word, and every element
-  lands on its beat word. Never hard-code a time.
-- Follow GUIDELINES.md → Inserts: fill the card, nothing cropped at its edges, charts computed
+  voiceover. It starts on the start word, exits right after the end word (or holds or
+  dissolves, as the window says), and every element lands on its beat word. Never hard-code
+  a time.
+- Follow GUIDELINES.md → Inserts: fill the card, nothing cropped at its edges, no box open
+  before its content, numbered lists running down, light highlights behind dark text, no
+  rolling words with digits, clipping only on the axis an animation needs, charts computed
   from the data (the build fails on a mismatch), and the channel's transitions baked in.
-  Backgrounds crossfade to a pre-blurred copy: never a live CSS blur.
+  Backgrounds crossfade to a pre-blurred copy: never a live CSS blur. Cards render silent:
+  list each sound and its frame for the timeline.
 - Register the composition as <CODE>-<video>-s<nn> and get `npx tsc --noEmit` clean. Render
-  stills at its start, middle and end (npm run still), then do the GPU render (npm run render,
-  or render:alpha for inserts over a recording), then npm run qa on it.
+  stills at its start, middle and end (npm run still, one at a time). A scene then gets its
+  GPU render (npm run render, or render:alpha for an overlay) and npm run qa. A recording's
+  inserts stop at the stills: their final renders run in one batch at the end.
 
-Report back: files changed, composition ID, still and render paths, the QA result, and anything the user should look at.
+Report back: files changed, composition ID, still and render paths, the QA result, each card's sounds and their frames, and anything the user should look at.
 ```
 
 `.claude/agents/video-editor.md`:
@@ -571,7 +707,7 @@ Report back: files changed, composition ID, still and render paths, the QA resul
 ```markdown
 ---
 name: video-editor
-description: Edits a creator's raw recording into a timeline for Premiere Pro. Transcribes it with CrisperWhisper, cuts only clear mistakes against the script, verifies every join, builds the timing table the inserts sync to, and exports the timeline for Premiere Pro (XML), Final Cut Pro (FCPXML) and DaVinci Resolve (OTIO).
+description: Edits a creator's raw recording into a timeline for Premiere Pro. Transcribes it, finds every stumble, cuts only clear mistakes against the script, verifies every join, masters the voice, builds the timing table the inserts sync to, plans the moves on the speaker, and assembles and checks the timeline for Premiere Pro (XML), Final Cut Pro (FCPXML) and DaVinci Resolve (OTIO), with a review list.
 model: claude-opus-5-5
 effort: xhigh
 skills:
@@ -584,21 +720,33 @@ First read in full: README.md, GUIDELINES.md, and channels/<slug>/ (CHANNEL.md w
 pacing and glossary, theme.ts, and videos/<video>/ with BRIEF.md). List recordings/<slug>/
 and media/<slug>/, and open only the files you need. Never change the recording itself.
 
-Then do what the main chat asks, following GUIDELINES.md → Editing a recording. If the
-transcriber or FFmpeg is missing, install it as you go; don't stop to ask.
-- Transcribe it with CrisperWhisper (npm run transcribe), verbatim, then correct names and
-  terms against the channel glossary and the script. At a cut or a retake, check the audio too.
-- Cut only clear mistakes (false starts, flubs, retakes), diffing the transcript against the
-  script. Keep natural pauses, rants and ad-libs. Verify every join by re-transcribing about
-  2 s either side. Write cut/cuts.json and cut/CUTS.md.
-- Export the cut-only timeline (npm run timeline), and check it reads back through
-  OpenTimelineIO.
-- Build the timing table: cut/words-cut.json, and cut/insert-windows.json for the inserts in
-  BRIEF.md.
-- Render nothing unless the main chat asks for it.
+Then do what the main chat asks, following GUIDELINES.md → Editing a recording, Moves on the
+speaker and Sound. If the transcriber or FFmpeg is missing, install it as you go; don't stop
+to ask.
+- Transcribe it (npm run transcribe): Whisper with the glossary for the words, and
+  CrisperWhisper's verbatim pass for the stumbles. Correct names and terms against the
+  glossary and the script. At a cut or a retake, check the audio too.
+- Find every stumble: the verbatim pass against Whisper, each sentence re-transcribed with
+  the verbatim-leaning prompt, and the audio where the text looks clean. Cut only clear
+  mistakes (false starts, flubs, retakes) and notes to the editor said on camera, diffing
+  the transcript against the script. Keep rants and ad-libs, and the pauses the host's policy
+  in CHANNEL.md keeps; for a new host, measure their pauses and report back with a
+  recommended policy before cutting. Place every cut by the silence in the audio, and verify
+  every join by re-transcribing about 2 s either side. Write cut/cuts.json (only the
+  decisions) and cut/CUTS.md.
+- Export the cut-only timeline (npm run timeline) with its REVIEW.md, and check it reads back
+  through OpenTimelineIO.
+- Master the voice (npm run master), and build the timing table: cut/words-cut.json, and
+  cut/insert-windows.json for the inserts in BRIEF.md, anchored on the words actually said.
+- Plan the moves on the speaker around the inserts.
+- Render nothing unless the main chat asks for it. When it asks for the full timeline, test
+  the assembly with stand-in files, render every insert in one batch (render:split for
+  cards, render:alpha for overlays), and run npm run assemble until every check passes.
+  Then write REVIEW.md.
 
 Report back: files written, the length before and after with cuts counted by reason, the
-"your call" and "listen to these" lists, and the timeline's path.
+"your call" and "listen to these" lists, the voice master's loudness and true peak, any
+check that failed, and the timeline's path.
 ```
 
 ## Keep the docs current
@@ -608,4 +756,5 @@ Report back: files written, the length before and after with cuts counted by rea
 - `BRIEF.md` after every scene step (idea → researched → animated → rendered) and every decision
 - `PROJECTS.md` whenever a channel or video is added, a video's status or next step changes, or a video ships
 - `CUTS.md` whenever the cut changes, with each delivered version's `cuts.json` kept in `cut/versions/`
+- `REVIEW.md` with every delivered timeline
 - `README.md` when commands change

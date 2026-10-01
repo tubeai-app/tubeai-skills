@@ -12,8 +12,8 @@ Tell Claude what you want in your video, and it does the technical work: it sets
 - **Your channel's look, every time.** Colors, fonts, logo and reusable animations are set once per channel. Share a YouTube link or a video file, and Claude matches its style.
 - **Animated scenes.** Title cards, lower thirds, charts, montages, and news articles or X and Reddit posts rebuilt as sharp, animated cards, all built with [Remotion](https://www.remotion.dev).
 - **Media, found for you.** Claude searches for what a scene needs and gathers it: clips from YouTube and other video sites (just the seconds you need), photos and videos from the web, news articles, documents, posts from X and Reddit, and the data behind charts. Every source is logged.
-- **Voiceovers and transcripts** with Qwen3-TTS and CrisperWhisper, running on your own computer. Transcripts are verbatim, with every filler, stutter and retake in place, and word timings accurate to a few hundredths of a second. With strong enough graphics, the voice also takes tone directions, and Claude can design a new voice from a description.
-- **Raw recordings, edited.** Claude cuts the false starts, flubs and retakes (your natural pauses stay), times every insert to the words it illustrates, and hands you a timeline to finish in Premiere Pro, Final Cut Pro or DaVinci Resolve.
+- **Voiceovers and transcripts** with Qwen3-TTS, Whisper and CrisperWhisper, running on your own computer. Transcripts are verbatim, with every filler, stutter and retake in place, names spelled right, and word timings accurate to a few hundredths of a second. With strong enough graphics, the voice also takes tone directions, and Claude can design a new voice from a description.
+- **Raw recordings, edited.** Claude cuts the false starts, flubs and retakes (your natural pauses stay, unless you want them tighter), times every insert to the words it illustrates, masters your voice to YouTube's loudness, adds zooms and pans on you, and hands you a timeline to finish in Premiere Pro, Final Cut Pro or DaVinci Resolve, with a list of everything worth a second look. Grade one frame the way you like it, and Claude builds a color LUT to match.
 - **It remembers the work.** Every channel and video keeps its notes and progress, so a new chat picks up where you left off.
 
 **You need** a Mac or a Windows PC, and Claude Code (the Code tab in the Claude desktop app, or the terminal). It's fastest on a Mac with Apple Silicon (M1 or later) or a PC with an NVIDIA graphics card, and still works, more slowly, on other machines.
@@ -69,7 +69,7 @@ The plugin is two skills that work together. Users never pick between them: Clau
 
 | Skill | What it does |
 |---|---|
-| `tubeai-video` | The video editor: sets up a Remotion project on a Mac or Windows PC, keeps each channel's branding and reusable animations, matches styles from a YouTube link or video file, researches media (articles, X/Reddit posts, YouTube clips), makes Qwen3-TTS voiceovers and CrisperWhisper transcripts, edits raw recordings into a timeline for Premiere Pro, Final Cut Pro or DaVinci Resolve, and renders on the GPU. |
+| `tubeai-video` | The video editor: sets up a Remotion project on a Mac or Windows PC, keeps each channel's branding and reusable animations, matches styles from a YouTube link or video file, researches media (articles, X/Reddit posts, YouTube clips), makes Qwen3-TTS voiceovers and Whisper and CrisperWhisper transcripts, edits raw recordings (cuts, zooms and pans on the speaker, a mastered voice, a review list) into a timeline for Premiere Pro, Final Cut Pro or DaVinci Resolve, and renders on the GPU. |
 | `tubeai-mcp` | YouTube research through the TubeAI connector: video ideas and outliers, niches, competitors, titles, transcripts, thumbnails and script drafts, saved to the user's TubeAI workspace. The video editor uses it for ideas, scripts and finding clips when TubeAI is connected. |
 
 ## Tutorial: from setup to a finished video
@@ -92,8 +92,9 @@ Open Claude Code in an empty folder and say **"Set up my video project"**.
 **A raw recording:** put it in the project's `recordings/<channel>/` folder (or give Claude its path), with the script if you have one, and say **"Edit this recording"**.
 
 1. Claude transcribes it and proposes the inserts (the cards, charts, clips and graphics that go on top), each with the sentence it goes on. Approve the list, and add or drop anything.
-2. It cuts the false starts, flubs and retakes, keeps your natural pauses, and sends a cut-only timeline you can check in your editor while it builds the inserts.
-3. It builds the inserts, each timed to the words it illustrates.
+2. It cuts the false starts, flubs and retakes, keeps your natural pauses (the first time, it measures them and asks how tight you want them), and sends a cut-only timeline you can check in your editor while it builds the inserts.
+3. It masters your voice, builds the inserts, each timed to the words it illustrates, and plans zooms and pans on you around them.
+4. To match your color grade, grade one frame in your editor and share it: Claude builds a LUT from it.
 
 ### 3. Preview everything before rendering
 
@@ -109,6 +110,7 @@ When you're happy, say **"Render it"**. Claude renders, checks every file before
 
 - **Scenes:** an MP4, or a transparent overlay to drop into your editor.
 - **The professional output:** if you finish videos in Premiere Pro, Final Cut Pro or DaVinci Resolve, ask for the timeline. You get an `.xml` for Premiere (File → Import), an `.fcpxml` for Final Cut Pro (File → Import → XML) and an `.otio` for Resolve (File → Import → Timeline), with every scene already on its track at the right moment and a marker on each. For a recording, it's what you get by default, with every cut still adjustable; ask if you also want an MP4.
+- **With a recording's timeline:** your mastered voice and the zooms and pans on you (fully in Premiere for now), and track V2 left empty for your color adjustment layer. A `REVIEW.md` lists what's worth a look: the judgment calls in the cut, the joins to listen to, every place the screen corrects a figure, and the photo credits for your video description.
 
 ### 6. Pick up where you left off
 

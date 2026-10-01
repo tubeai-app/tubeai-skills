@@ -5,8 +5,8 @@
   "plugins": [
     {
       "name": "tubeai",
-      "description": "A video editor for YouTube creators in Claude Code, on Mac or Windows: Claude sets up a Remotion project, keeps each channel's branding and reusable animations, matches styles from a YouTube link or video file, researches media, makes Qwen3-TTS voiceovers and CrisperWhisper transcripts, edits raw recordings into a Premiere, Final Cut or Resolve timeline, and renders on the GPU. Optional: connect TubeAI to research 400M+ YouTube videos for ideas, packaging, transcripts and thumbnails. Made for non-technical users.",
-      "version": "1.4.0",
+      "description": "A video editor for YouTube creators in Claude Code, on Mac or Windows: Claude sets up a Remotion project, keeps each channel's branding and reusable animations, matches styles from a YouTube link or video file, researches media, makes Qwen3-TTS voiceovers and verbatim transcripts, edits raw recordings into a Premiere, Final Cut or Resolve timeline with zooms and pans on the speaker and a mastered voice, and renders on the GPU. Optional: connect TubeAI to research 400M+ YouTube videos for ideas, packaging, transcripts and thumbnails. Made for non-technical users.",
+      "version": "1.5.0",
       "source": "./",
       "strict": false,
       "skills": ["./skills/tubeai-mcp", "./skills/tubeai-video"]
